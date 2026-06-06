@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>متتبع العمل والراتب</title>
+  <!-- رابط manifest -->
+  <link rel="manifest" href="manifest.json">
+  <!-- Bootstrap 5 RTL -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+  <!-- Dexie.js -->
+  <script src="https://unpkg.com/dexie@3.2.2/dist/dexie.js"></script>
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    body { background: #f5f7fb; font-family: 'Segoe UI', Tahoma, sans-serif; }
+    .card { border-radius: 15px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+    .nav-pills .nav-link { border-radius: 10px; margin: 0 4px; }
+    .stat-box { background: #fff; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+    .stat-box h6 { color: #6c757d; font-size: 0.9rem; }
+    .stat-box .number { font-size: 2rem; font-weight: 700; color: #0d6efd; }
+    .table-report th, .table-report td { vertical-align: middle; }
+    .table-responsive { -webkit-overflow-scrolling: touch; }
+    @media print {
+      body * { visibility: hidden; }
+      .print-area, .print-area * { visibility: visible; }
+      .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <h3 class="mb-4 text-center">📊 متتبع العمل والراتب</h3>
+    <ul class="nav nav-pills mb-4 justify-content-center" id="mainTab" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#dashboard">لوحة التحكم</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#dailyEntry">تسجيل يوم</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#salarySettings">إعدادات الراتب</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#withdrawals">المسحوبات</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#monthlyReport">كشف شهري</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#annualReport">كشف سنوي</button></li>
+    </ul>
+    <div class="tab-content">
+      <!-- Dashboard -->
+      <div class="tab-pane fade show active" id="dashboard">
+        <div class="row" id="dashboardContent"></div>
+      </div>
+      <!-- Daily Entry -->
+      <div class="tab-pane fade" id="dailyEntry">
+        <div class="card p-4">
+          <h5>تسجيل يوم العمل</h5>
+          <form id="dailyForm">
+            <div class="mb-3">
+              <label class="form-label">التاريخ</label>
+              <input type="date" id="logDate" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">الحالة</label>
+              <select id="logStatus" class="form-select">
+                <option value="work">عمل</option>
+                <option value="vacation">إجازة سنوية</option>
+                <option value="sick">إجازة مرضية</option>
+                <option value="holiday">عطلة رسمية</option>
+                <option value="absent">غياب</option>
+              </select>
+            </div>
+            <div id="workFields">
+              <div class="row">
+                <div class="col-6 mb-3">
+                  <label class="form-label">ساعات التأخير</label>
+                  <input type="number" step="0.5" min="0" id="lateHours" class="form-control" value="0">
+                </div>
+                <div class="col-6 mb-3">
+                  <label class="form-label">ساعات إضافي</label>
+                  <input type="number" step="0.5" min="0" id="overtimeHours" class="form-control" value="0">
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">ملاحظة</label>
+              <input type="text" id="logNote" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">حفظ</button>
+          </form>
+        </div>
+        <div class="mt-3" id="todayLogMessage"></div>
+      </div>
+      <!-- Salary Settings -->
+      <div class="tab-pane fade" id="salarySettings">
+        <div class="card p-4">
+          <h5>إعدادات الراتب للشهر</h5>
+          <form id="salaryForm">
+            <div class="mb-3">
+              <label class="form-label">الشهر</label>
+              <input type="month" id="salaryMonth" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">الراتب الأساسي</label>
+              <input type="number" step="0.01" id="baseSalary" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">خصم ساعة التأخير</label>
+              <input type="number" step="0.01" id="lateDeduction" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">أجر ساعة الإضافي</label>
+              <input type="number" step="0.01" id="overtimeRate" class="form-control" value="0">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">حفظ الإعدادات</button>
+          </form>
+          <div id="salaryMsg" class="mt-2"></div>
+        </div>
+      </div>
+      <!-- Withdrawals -->
+      <div class="tab-pane fade" id="withdrawals">
+        <div class="card p-4">
+          <h5>المسحوبات الشهرية</h5>
+          <div class="row mb-3">
+            <div class="col-8"><input type="month" id="withdrawalMonth" class="form-control"></div>
+            <div class="col-4"><button class="btn btn-outline-primary w-100" onclick="loadWithdrawals()">عرض</button></div>
+          </div>
+          <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#addWithdrawalModal">➕ إضافة مسحوب</button>
+          <div id="withdrawalsList"></div>
+          <div class="fw-bold mt-2">الإجمالي: <span id="totalWithdrawals">0</span></div>
+        </div>
+      </div>
+      <!-- Monthly Report -->
+      <div class="tab-pane fade" id="monthlyReport">
+        <div class="card p-4">
+          <h5>الكشف الشهري</h5>
+          <div class="row mb-3">
+            <div class="col-8"><input type="month" id="reportMonth" class="form-control"></div>
+            <div class="col-4"><button class="btn btn-primary w-100" onclick="generateMonthlyReport()">عرض</button></div>
+          </div>
+          <div id="monthlyReportContent"></div>
+          <div class="mt-3 no-print">
+            <button id="exportMonthlyBtn" class="btn btn-outline-success" style="display:none" onclick="exportMonthlyExcel()">📥 تصدير Excel</button>
+            <button id="printMonthlyBtn" class="btn btn-outline-secondary ms-2" style="display:none" onclick="printMonthlyReport()">🖨️ طباعة</button>
+          </div>
+        </div>
+      </div>
+      <!-- Annual Report -->
+      <div class="tab-pane fade" id="annualReport">
+        <div class="card p-4">
+          <h5>الكشف السنوي</h5>
+          <div class="row mb-3">
+            <div class="col-8"><input type="number" id="reportYear" class="form-control" placeholder="السنة" min="2020" max="2030"></div>
+            <div class="col-4"><button class="btn btn-primary w-100" onclick="generateAnnualReport()">عرض</button></div>
+          </div>
+          <div id="annualReportContent"></div>
+          <div class="mt-3 no-print">
+            <button id="exportAnnualBtn" class="btn btn-outline-success" style="display:none" onclick="exportAnnualExcel()">📥 تصدير Excel</button>
+            <button id="printAnnualBtn" class="btn btn-outline-secondary ms-2" style="display:none" onclick="printAnnualReport()">🖨️ طباعة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Add Withdrawal Modal -->
+  <div class="modal fade" id="addWithdrawalModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">إضافة مسحوب</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="withdrawalForm">
+          <input type="hidden" id="wMonth">
+          <div class="mb-3"><label>المبلغ</label><input type="number" step="0.01" id="wAmount" class="form-control" required></div>
+          <div class="mb-3"><label>التاريخ</label><input type="date" id="wDate" class="form-control" required></div>
+          <div class="mb-3"><label>الوصف</label><input type="text" id="wDesc" class="form-control"></div>
+          <button type="submit" class="btn btn-primary w-100">إضافة</button>
+        </form>
+      </div>
+    </div></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // IndexedDB setup (Dexie)
+    const db = new Dexie('WorkTrackerDB');
+    db.version(1).stores({
+      logs: 'date, status, late_hours, overtime_hours, note',
+      configs: 'month, base_salary, late_hour_deduction, overtime_hour_rate',
+      withdrawals: '++id, month, amount, date, description'
+    });
+    function formatMonth(date) { return date.toISOString().slice(0,7); }
+    async function getMonthLogs(m) { return db.logs.where('date').startsWith(m).toArray(); }
+    async function getMonthConfig(m) { return db.configs.get(m); }
+    async function getMonthWithdrawals(m) { return db.withdrawals.where('month').equals(m).toArray(); }
+
+    // Dashboard
+    async function loadDashboard() {
+      const now = new Date(), curr = formatMonth(now);
+      const logs = await getMonthLogs(curr), config = await getMonthConfig(curr) || {}, withdrawals = await getMonthWithdrawals(curr);
+      const workDays = logs.filter(l=>l.status==='work').length;
+      const lateDays = logs.filter(l=>l.status==='work' && l.late_hours>0).length;
+      const totalLate = logs.reduce((s,l)=>s+(l.late_hours||0),0);
+      const totalOvertime = logs.reduce((s,l)=>s+(l.overtime_hours||0),0);
+      const base = config.base_salary||0, lateDed = totalLate*(config.late_hour_deduction||0), overtimePay = totalOvertime*(config.overtime_hour_rate||0);
+      const net = base - lateDed + overtimePay, totalW = withdrawals.reduce((s,w)=>s+w.amount,0), remaining = net - totalW;
+      document.getElementById('dashboardContent').innerHTML = `
+        <div class="col-md-4"><div class="stat-box"><h6>أيام العمل</h6><div class="number">${workDays}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><h6>أيام التأخير</h6><div class="number">${lateDays}</div><small>${totalLate} ساعة</small></div></div>
+        <div class="col-md-4"><div class="stat-box"><h6>الراتب الصافي المتوقع</h6><div class="number">${net.toFixed(2)}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><h6>المسحوبات</h6><div class="number">${totalW.toFixed(2)}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><h6>المتبقي</h6><div class="number" style="color:${remaining>=0?'#0d6efd':'#dc3545'}">${remaining.toFixed(2)}</div></div></div>
+      `;
+    }
+
+    // Daily log
+    document.getElementById('logStatus').addEventListener('change', function(){
+      document.getElementById('workFields').style.display = this.value==='work'?'block':'none';
+    });
+    document.getElementById('dailyForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const date = document.getElementById('logDate').value, status = document.getElementById('logStatus').value;
+      const late = status==='work'?(parseFloat(document.getElementById('lateHours').value)||0):0;
+      const overtime = status==='work'?(parseFloat(document.getElementById('overtimeHours').value)||0):0;
+      const note = document.getElementById('logNote').value;
+      await db.logs.put({date,status,late_hours:late,overtime_hours:overtime,note});
+      document.getElementById('todayLogMessage').innerHTML='<div class="alert alert-success">تم الحفظ</div>';
+      this.reset();
+      document.getElementById('logDate').value = new Date().toISOString().slice(0,10);
+      loadDashboard();
+    });
+    document.getElementById('logDate').value = new Date().toISOString().slice(0,10);
+
+    // Salary settings
+    document.getElementById('salaryForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const month = document.getElementById('salaryMonth').value, base = parseFloat(document.getElementById('baseSalary').value);
+      const lateDed = parseFloat(document.getElementById('lateDeduction').value), overtimeRate = parseFloat(document.getElementById('overtimeRate').value)||0;
+      await db.configs.put({month,base_salary:base,late_hour_deduction:lateDed,overtime_hour_rate:overtimeRate});
+      document.getElementById('salaryMsg').innerHTML='<div class="alert alert-success">تم حفظ الإعدادات</div>';
+      loadDashboard();
+    });
+
+    // Withdrawals
+    document.getElementById('withdrawalMonth').value = new Date().toISOString().slice(0,7);
+    async function loadWithdrawals() {
+      const month = document.getElementById('withdrawalMonth').value;
+      document.getElementById('wMonth').value = month;
+      const withdrawals = await getMonthWithdrawals(month);
+      const listDiv = document.getElementById('withdrawalsList');
+      if (!withdrawals.length) listDiv.innerHTML='<p class="text-muted">لا توجد مسحوبات</p>';
+      else {
+        listDiv.innerHTML = '<ul class="list-group">'+withdrawals.map(w=>`<li class="list-group-item d-flex justify-content-between"><span>${w.date} - ${w.description||''}</span><span>${w.amount.toFixed(2)} <button class="btn btn-sm btn-danger" onclick="deleteWithdrawal(${w.id})">حذف</button></span></li>`).join('')+'</ul>';
+      }
+      document.getElementById('totalWithdrawals').textContent = withdrawals.reduce((s,w)=>s+w.amount,0).toFixed(2);
+    }
+    document.getElementById('withdrawalForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const month = document.getElementById('wMonth').value, amount = parseFloat(document.getElementById('wAmount').value);
+      const date = document.getElementById('wDate').value, desc = document.getElementById('wDesc').value;
+      await db.withdrawals.add({month,amount,date,description:desc});
+      this.reset();
+      document.getElementById('addWithdrawalModal').querySelector('.btn-close').click();
+      loadWithdrawals(); loadDashboard();
+    });
+    window.deleteWithdrawal = async function(id){ await db.withdrawals.delete(id); loadWithdrawals(); loadDashboard(); };
+
+    // Monthly report
+    async function generateMonthlyReport() {
+      const monthStr = document.getElementById('reportMonth').value;
+      const logs = await getMonthLogs(monthStr), config = await getMonthConfig(monthStr) || {}, withdrawals = await getMonthWithdrawals(monthStr);
+      const workDays = logs.filter(l=>l.status==='work').length, absentDays = logs.filter(l=>l.status==='absent').length;
+      const totalLate = logs.reduce((s,l)=>s+(l.late_hours||0),0), totalOvertime = logs.reduce((s,l)=>s+(l.overtime_hours||0),0);
+      const lateDeduction = totalLate*(config.late_hour_deduction||0), overtimePay = totalOvertime*(config.overtime_hour_rate||0);
+      const base = config.base_salary||0, net = base - lateDeduction + overtimePay, totalW = withdrawals.reduce((s,w)=>s+w.amount,0), remaining = net - totalW;
+      const content = `<div class="table-responsive print-area">
+        <table class="table table-bordered table-report">
+          <tr><th>إجمالي أيام العمل</th><td>${workDays}</td></tr><tr><th>أيام الغياب</th><td>${absentDays}</td></tr>
+          <tr><th>ساعات التأخير</th><td>${totalLate}</td></tr><tr><th>خصم التأخير</th><td>${lateDeduction.toFixed(2)}</td></tr>
+          <tr><th>ساعات إضافي</th><td>${totalOvertime}</td></tr><tr><th>مبلغ الإضافي</th><td>${overtimePay.toFixed(2)}</td></tr>
+          <tr><th>الراتب الأساسي</th><td>${base.toFixed(2)}</td></tr>
+          <tr class="table-primary"><th>الصافي</th><td>${net.toFixed(2)}</td></tr>
+          <tr><th>إجمالي المسحوبات</th><td>${totalW.toFixed(2)}</td></tr>
+          <tr class="table-success"><th>المتبقي للاستلام</th><td>${remaining.toFixed(2)}</td></tr>
+        </table><h6>المسحوبات:</h6>${withdrawals.length?withdrawals.map(w=>`<p>${w.date} - ${w.amount} (${w.description||''})</p>`).join(''):'لا يوجد'}</div>`;
+      document.getElementById('monthlyReportContent').innerHTML = content;
+      document.getElementById('exportMonthlyBtn').style.display='inline-block';
+      document.getElementById('printMonthlyBtn').style.display='inline-block';
+      window._monthlyData = { monthStr, workDays, absentDays, totalLate, lateDeduction, totalOvertime, overtimePay, base, net, totalW, remaining, withdrawals };
+    }
+    function exportMonthlyExcel() {
+      const d = window._monthlyData;
+      const ws = XLSX.utils.aoa_to_sheet([['البيان','القيمة'],['الشهر',d.monthStr],['أيام العمل',d.workDays],['أيام الغياب',d.absentDays],
+        ['ساعات التأخير',d.totalLate],['خصم التأخير',d.lateDeduction],['ساعات إضافي',d.totalOvertime],['مبلغ الإضافي',d.overtimePay],
+        ['الراتب الأساسي',d.base],['الصافي',d.net],['المسحوبات',d.totalW],['المتبقي',d.remaining]]);
+      XLSX.utils.book_append_sheet(XLSX.utils.book_new(), ws, "كشف شهري");
+      XLSX.writeFile(wb, `كشف_${d.monthStr}.xlsx`);
+    }
+    function printMonthlyReport() { window.print(); }
+
+    // Annual report
+    async function generateAnnualReport() {
+      const year = parseInt(document.getElementById('reportYear').value);
+      const monthsData = [];
+      for (let m=1; m<=12; m++) {
+        const monthStr = `${year}-${String(m).padStart(2,'0')}`;
+        const logs = await getMonthLogs(monthStr), config = await getMonthConfig(monthStr) || {}, withdrawals = await getMonthWithdrawals(monthStr);
+        const workDays = logs.filter(l=>l.status==='work').length, absentDays = logs.filter(l=>l.status==='absent').length;
+        const totalLate = logs.reduce((s,l)=>s+(l.late_hours||0),0), totalOvertime = logs.reduce((s,l)=>s+(l.overtime_hours||0),0);
+        const lateDeduction = totalLate*(config.late_hour_deduction||0), overtimePay = totalOvertime*(config.overtime_hour_rate||0);
+        const base = config.base_salary||0, net = base - lateDeduction + overtimePay, totalW = withdrawals.reduce((s,w)=>s+w.amount,0), remaining = net - totalW;
+        monthsData.push({month:m, workDays, absentDays, totalLate, lateDeduction, overtimePay, net, totalW, remaining});
+      }
+      const totals = monthsData.reduce((a,b)=>({workDays:a.workDays+b.workDays, absentDays:a.absentDays+b.absentDays, totalLate:a.totalLate+b.totalLate, lateDeduction:a.lateDeduction+b.lateDeduction, overtimePay:a.overtimePay+b.overtimePay, net:a.net+b.net, totalW:a.totalW+b.totalW, remaining:a.remaining+b.remaining}),{workDays:0,absentDays:0,totalLate:0,lateDeduction:0,overtimePay:0,net:0,totalW:0,remaining:0});
+      const rows = monthsData.map(m=>`<tr><td>${m.month}</td><td>${m.workDays}</td><td>${m.absentDays}</td><td>${m.totalLate}</td><td>${m.lateDeduction.toFixed(2)}</td><td>${m.overtimePay.toFixed(2)}</td><td>${m.net.toFixed(2)}</td><td>${m.totalW.toFixed(2)}</td><td>${m.remaining.toFixed(2)}</td></tr>`).join('');
+      document.getElementById('annualReportContent').innerHTML = `<div class="table-responsive print-area"><table class="table table-bordered table-sm">
+        <thead><tr><th>الشهر</th><th>أيام العمل</th><th>غياب</th><th>تأخير</th><th>خصم التأخير</th><th>الإضافي</th><th>الصافي</th><th>المسحوبات</th><th>المتبقي</th></tr></thead>
+        <tbody>${rows}</tbody><tfoot><tr class="table-secondary fw-bold"><td>الإجمالي</td><td>${totals.workDays}</td><td>${totals.absentDays}</td><td>${totals.totalLate.toFixed(1)}</td><td>${totals.lateDeduction.toFixed(2)}</td><td>${totals.overtimePay.toFixed(2)}</td><td>${totals.net.toFixed(2)}</td><td>${totals.totalW.toFixed(2)}</td><td>${totals.remaining.toFixed(2)}</td></tr></tfoot></table></div>`;
+      document.getElementById('exportAnnualBtn').style.display='inline-block';
+      document.getElementById('printAnnualBtn').style.display='inline-block';
+      window._annualData = { year, monthsData, totals };
+    }
+    function exportAnnualExcel() {
+      const d = window._annualData;
+      const ws_data = [['الشهر','أيام العمل','غياب','تأخير','خصم','إضافي','صافي','مسحوبات','متبقي']];
+      d.monthsData.forEach(m=>ws_data.push([m.month,m.workDays,m.absentDays,m.totalLate,m.lateDeduction,m.overtimePay,m.net,m.totalW,m.remaining]));
+      ws_data.push(['الإجمالي',d.totals.workDays,d.totals.absentDays,d.totals.totalLate,d.totals.lateDeduction,d.totals.overtimePay,d.totals.net,d.totals.totalW,d.totals.remaining]);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws_data), "كشف سنوي");
+      XLSX.writeFile(wb, `كشف_سنوي_${d.year}.xlsx`);
+    }
+    function printAnnualReport() { window.print(); }
+
+    // Init
+    (async ()=>{ await loadDashboard(); await loadWithdrawals(); })();
+    document.getElementById('reportMonth').value = new Date().toISOString().slice(0,7);
+    document.getElementById('reportYear').value = new Date().getFullYear();
+    window.loadWithdrawals = loadWithdrawals; window.generateMonthlyReport = generateMonthlyReport;
+    window.exportMonthlyExcel = exportMonthlyExcel; window.printMonthlyReport = printMonthlyReport;
+    window.generateAnnualReport = generateAnnualReport; window.exportAnnualExcel = exportAnnualExcel; window.printAnnualReport = printAnnualReport;
+  </script>
+  <!-- تسجيل Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js').then(()=>console.log('SW registered'));
+    }
+  </script>
+</body>
+</html>

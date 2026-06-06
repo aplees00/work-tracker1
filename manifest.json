@@ -1,0 +1,24 @@
+{
+  "name": "متتبع العمل والراتب",
+  "short_name": "متتبع العمل",
+  "description": "تطبيق لتسجيل أيام العمل والراتب والمسحوبات",
+  "start_url": "تتبع_العمل.html",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0d6efd",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "lang": "ar",
+  "dir": "rtl"
+}
